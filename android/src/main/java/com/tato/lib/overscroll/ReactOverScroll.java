@@ -1,21 +1,29 @@
 package com.tato.lib.overscroll;
 
 import android.content.Context;
-import android.support.v4.view.ViewPager;
+
+import androidx.viewpager.widget.ViewPager;
+
 import android.util.AttributeSet;
 import android.view.View;
 import android.widget.HorizontalScrollView;
 import android.widget.ListView;
 import android.widget.ScrollView;
 
-import com.facebook.react.uimanager.SizeMonitoringFrameLayout;
-
+import me.everything.android.ui.overscroll.IOverScrollDecor;
+import me.everything.android.ui.overscroll.IOverScrollUpdateListener;
 import me.everything.android.ui.overscroll.OverScrollDecoratorHelper;
+
+import com.facebook.react.bridge.Callback;
+import com.facebook.react.bridge.ReactContext;
+import com.facebook.react.bridge.WritableMap;
+import com.facebook.react.bridge.WritableNativeMap;
+import com.facebook.react.modules.core.DeviceEventManagerModule;
 
 /**
  * Created by eagleliu on 2017/12/13.
  */
-public class ReactOverScroll extends SizeMonitoringFrameLayout {
+public class ReactOverScroll extends SizeMonitoringFrameLayout implements IOverScrollUpdateListener {
     private boolean mBounce = false;
 
     public ReactOverScroll(Context context) {
@@ -42,26 +50,41 @@ public class ReactOverScroll extends SizeMonitoringFrameLayout {
         }
     }
 
-    private void setUpOverScroll (View child) {
+    private void setUpOverScroll(View child) {
         if (child != null) {
+            final IOverScrollDecor iOverScrollDecor;
             if (child instanceof ScrollView) {
-                OverScrollDecoratorHelper.setUpOverScroll((ScrollView)child);
+                iOverScrollDecor = OverScrollDecoratorHelper.setUpOverScroll((ScrollView) child);
             } else if (child instanceof HorizontalScrollView) {
-                OverScrollDecoratorHelper.setUpOverScroll((HorizontalScrollView)child);
+                iOverScrollDecor = OverScrollDecoratorHelper.setUpOverScroll((HorizontalScrollView) child);
             } else if (child instanceof ListView) {
-                OverScrollDecoratorHelper.setUpOverScroll((ListView)child);
+                iOverScrollDecor = OverScrollDecoratorHelper.setUpOverScroll((ListView) child);
             } else if (child instanceof ViewPager) {
-                OverScrollDecoratorHelper.setUpOverScroll((ViewPager)child);
+                iOverScrollDecor = OverScrollDecoratorHelper.setUpOverScroll((ViewPager) child);
             } else {
-                OverScrollDecoratorHelper.setUpStaticOverScroll(child, OverScrollDecoratorHelper.ORIENTATION_VERTICAL);
+                iOverScrollDecor = OverScrollDecoratorHelper.setUpStaticOverScroll(child, OverScrollDecoratorHelper.ORIENTATION_VERTICAL);
             }
+            iOverScrollDecor.setOverScrollUpdateListener(this);
         }
     }
 
-    public void setBounce (boolean bounce) {
+    public void setBounce(boolean bounce) {
         mBounce = bounce;
         if (bounce) {
             setUpOverScroll(getChildAt(0));
         }
     }
+
+    @Override
+    public void onOverScrollUpdate(IOverScrollDecor decor, int state, float offset) {
+        WritableMap map = new WritableNativeMap();
+        map.putDouble("offset", offset);
+        sendEvent((ReactContext)getContext(),"OverScroll.RESULT",map);
+    }
+
+    protected void sendEvent(ReactContext context, String eventName, WritableMap params){
+        context.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
+                .emit(eventName,params);
+    }
+
 }
